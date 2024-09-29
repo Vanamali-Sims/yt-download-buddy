@@ -1,31 +1,38 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
+	"youtube-downloader/internal/config"
+	"youtube-downloader/internal/downloader"
+	"youtube-downloader/internal/server"
 )
 
-func downloadVideo(url string) error {
-	cmd := exec.Command("yt-dlp", url)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to download video %v", err)
-	}
-
-	return nil
-}
-
 func main() {
-	videoURL := ""
-	fmt.Println("Starting download !")
-	err := downloadVideo(videoURL)
-	if err != nil {
-		log.Fatalf("Error downloading video %v", err)
+	// Check if we're running as a web server or command-line tool
+	serverMode := flag.Bool("server", false, "Start in web server mode")
+	url := flag.String("url", "", "YouTube video URL to download (used in CLI mode)")
+	flag.Parse()
+
+	if *serverMode {
+		// Start the web server
+		server.StartServer()
+	} else {
+		// Run command-line downloader
+		if *url == "" {
+			fmt.Println("YouTube URL is required in CLI mode. Use -url to specify the video URL.")
+			os.Exit(1)
+		}
+
+		// Load config and download the video
+		cfg := config.LoadConfig()
+		err := downloader.DownloadVideo(*url, cfg.OutputPath, cfg.VideoFormat)
+		if err != nil {
+			fmt.Printf("Error downloading video: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Download completed successfully!")
 	}
-	fmt.Println("Download completed!")
 }
